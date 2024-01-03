@@ -1,50 +1,33 @@
 import java.util.*;
 
-class Variable{
-   public float val;
-   public float derivative;
-   public String name;
-   public boolean constant=false;
-   
-   public Variable(float startVal, String name){
-       this.val = startVal;
-       this.derivative = 0;
-       this.name = name;
-   }
-   public Variable(String name){
-      this(0, name); 
-   }
-   public Variable(float startVal, boolean constant){
-      this(startVal, null);
-      this.constant = constant;
-   }
-}
-
 /**
 * A transformation takes in some number of inputs and returns one output
 */
 abstract class Trans {
-    private final Variable[] vars; // variables used
-    
     private final Trans[] prev; // previous operations
-    private final float[] lossOverFunc; // basically if the output from [prev] increased by a little bit, how much would the loss increase by?
     private List<Trans> nex; // next operations
     
     private float result; // result from a forward run
+    private float derivative;
     
     private boolean forwardRun = false; // debugging, just to make sure everything's working properly ;)
     private boolean backwardRun = false;
+    public String name = null;
     
-    protected Trans(Trans[] prev, Variable[] vars){
+    protected Trans(Trans[] prev){
       this.prev = prev;
-      this.lossOverFunc = new float[prev.length];
       for(Trans i : prev){
         i.nex.add(this);
       }
       this.nex = new ArrayList<>();
       
-      this.vars = vars;
       this.result = 0;
+      this.derivative = 0;
+    }
+    
+    protected Trans(Trans[] prev, String name){
+      this(prev);
+      this.name = name;
     }
     
     // now result is updated with what happens when this model is run
@@ -57,7 +40,7 @@ abstract class Trans {
       forwardRun = true;
     }
     
-    // call updateDerivative() of nex first, now the variables in vars is updated with the derivatives from this layer & lossOverFunc is updated
+    // call updateDerivative() of nex first, now update derivatives of the transformations before it
     abstract void updateDerivatives();
     public void backward() throws IllegalStateException{
         for(Trans i : nex){
@@ -69,9 +52,6 @@ abstract class Trans {
     
     // -------------- UTILITY METHODS
     // get methods
-    protected float lossOverTrans(Trans transFor) {
-      return lossOverFunc[Arrays.asList(prev).indexOf(transFor)];
-    }
     public float getResult() throws IllegalStateException{
       if(!forwardRun) throw new IllegalStateException("There isn't a result yet...");
        return result; 
@@ -79,70 +59,76 @@ abstract class Trans {
     public List<Trans> nextLayers(){
       return nex;
     }
+    public float getDerivative(){
+       return this.derivative; 
+    }
     
     // set methods
-    protected void setLossOverTrans(Trans transFor, float to){
-       lossOverFunc[Arrays.asList(prev).indexOf(transFor)] = to; 
-    }
     public void reset(){
        this.forwardRun = false;
        this.backwardRun = false;
+       this.derivative = 0;
     }
     public void addVars(Set<Variable> vars){
-       for(Variable i : this.vars) if(!i.constant) vars.add(i);  
+       
+    }
+    public void incDerivative(float by){
+       this.derivative += by; 
+    }
+    public String toString(){
+       if(name != null) return name;
+       return super.toString();
     }
 }
 
-class Multiply extends Trans{
-   Trans last;
-   Variable by;
-  
-   public Multiply(Trans last, Variable by) {
-       super(new Trans[]{last}, new Variable[]{by});
-       this.last = last;
-       this.by = by;
+class Variable extends Trans {
+   private float val;
+   boolean constant;
+   public Variable(float val, boolean constant, String name){
+      super(new Trans[]{}, name);
+      this.val = val;
+      this.constant = constant;
    }
-   protected float runCalcs() {
-     return last.getResult() * by.val;
+   public Variable(float val, boolean constant){
+      this(val, constant, null);
    }
-   protected void updateDerivatives(){
-     float toInput = 0;
-     for(Trans i : nextLayers()) {
-       by.derivative += i.lossOverTrans(this) * last.getResult();
-       toInput += i.lossOverTrans(this) * by.val;
-     }
-     setLossOverTrans(last, toInput);
+   protected float runCalcs(){
+      return val;
+   }
+   public float getVal(){
+      return val;
+   }
+   public void addVars(Set<Variable> vars){
+      if(!this.constant) vars.add(this);
+   }
+   protected void updateDerivatives(){}
+   public String toString(){
+     if(name == null) return super.toString();
+     return String.format("[%s, val=%f]", name, val);
    }
 }
 
-class Add extends Trans{
-   Trans last;
-   Variable by;
+class Product extends Trans{
+   Trans a, b;
   
-   public Add(Trans last, Variable by) {
-       super(new Trans[]{last}, new Variable[]{by});
-       this.last = last;
-       this.by = by;
+   public Product(Trans a, Trans b) {
+       super(new Trans[]{a, b});
+       this.a = a;
+       this.b = b;
    }
-   
-   protected float runCalcs(){
-      return last.getResult() + by.val; 
+   protected float runCalcs() {
+     return a.getResult() * b.getResult();
    }
-   
    protected void updateDerivatives(){
-     float toInput = 0;
-     for(Trans i : nextLayers()) {
-       by.derivative += i.lossOverTrans(this);
-       toInput += i.lossOverTrans(this);
-     }
-     setLossOverTrans(last, toInput);
+     a.incDerivative(getDerivative() * b.getResult());
+     b.incDerivative(getDerivative() * a.getResult());
    }
 }
 
 class Sum extends Trans {
   Trans[] last;
    public Sum(Trans[] last){
-      super(last, new Variable[]{});
+      super(last);
       this.last = last;
    }
    protected float runCalcs(){
@@ -151,13 +137,7 @@ class Sum extends Trans {
       return sum;
    }
    protected void updateDerivatives(){
-      float toInput = 0;
-      for(Trans i : nextLayers()){
-         toInput += i.lossOverTrans(this);
-      }
-      for(Trans i : last) {
-         setLossOverTrans(i, toInput); 
-      }
+     for(Trans i : last) i.incDerivative(this.getDerivative());
    }
 }
 
@@ -166,7 +146,7 @@ class Exponent extends Trans {
     Trans last;
   
     public Exponent(Trans last, float by){
-        super(new Trans[]{last}, new Variable[]{});
+        super(new Trans[]{last});
         this.by = by;
         this.last = last;
     }
@@ -174,11 +154,7 @@ class Exponent extends Trans {
        return (float) Math.pow(last.getResult(), by);
     }
     protected void updateDerivatives(){
-      float toInput = 0;
-      for(Trans i : nextLayers()){
-         toInput += i.lossOverTrans(this) * by * (float) Math.pow(last.getResult(), by-1);
-      }
-      setLossOverTrans(last, toInput);
+      last.incDerivative(this.getDerivative() * by * (float) Math.pow(last.getResult(), by-1));
     }
 }
 
@@ -186,7 +162,7 @@ class Loss extends Trans {
    Trans last;
   
    public Loss(Trans last){
-      super(new Trans[]{last}, new Variable[]{});
+      super(new Trans[]{last});
       this.last = last;
    }
    
@@ -195,33 +171,21 @@ class Loss extends Trans {
    }
    
    protected void updateDerivatives(){
-      setLossOverTrans(last, 1); 
+      last.incDerivative(1); 
    }
-}
-
-class Input extends Trans {
-   public float val;
-   public Input(float val){
-      super(new Trans[]{}, new Variable[]{});
-      this.val = val;
-   }
-   protected float runCalcs(){
-      return val;
-   }
-   protected void updateDerivatives(){}
 }
 
 class Model {
     Set<Variable> vars; // the parameters to optimize... 
-    List<Input> inputs;
+    List<Variable> inputs;
     List<Trans> outputs;
     Trans loss;
     
     List<Trans> topoSort;
     
-    public Model(List<Input> inputs, List<Trans> outputs, Loss loss) throws IllegalArgumentException{
+    public Model(List<Variable> roots, List<Trans> outputs, Loss loss) throws IllegalArgumentException{
       vars = new HashSet<Variable>();
-      this.inputs = inputs;
+      this.inputs = roots;
       this.loss = loss;
       
       topoSort = new ArrayList<>();
@@ -240,8 +204,6 @@ class Model {
     
     // runs the calculations on the model but DOESN'T CHANGE anything
     public void runModel(){
-      for(Variable i : vars) i.derivative = 0;
-      System.out.println(topoSort);
       for(Trans i : topoSort) i.reset();
       for(Trans i : topoSort) i.forward();
       for(int i = topoSort.size() - 1; i >= 0; --i) topoSort.get(i).backward();
