@@ -1,6 +1,6 @@
 import java.util.*;
 import java.util.stream.*;
-Variable[] vars = new Variable[]{new Variable(5, false, "slope"), new Variable(5, false, "bias")};
+Variable[] vars = new Variable[]{new Variable(0, false, "a"), new Variable(0, false, "b"), new Variable(0, false, "c")};
 List<Float> xCoord=new ArrayList<Float>(Arrays.asList(0.0f)), yCoord=new ArrayList<Float>(Arrays.asList(0.0f));
 Model model;
 
@@ -19,14 +19,16 @@ void setModel(){
   Variable negativeOne = new Variable(-1, true, "-1");
   Variable div = new Variable(1.0f/xCoord.size(), true, "1/" + xCoord.size());
   
-  Trans[] ax = new Trans[x.length];
-  for(int i = 0; i < ax.length; i++) ax[i] = new Product(x[i], vars[0]);
-  Trans[] plusB = new Trans[x.length];
-  for(int i = 0; i < ax.length; i++) plusB[i] = new Sum(new Trans[]{ax[i], vars[1]});
+  Trans[] preds = new Trans[x.length];
+  for(int i = 0; i < x.length; i++){
+     Trans at = new Product(new Exponent(x[i], 2), vars[0]);
+     Trans bt = new Product(x[i], vars[1]);
+     preds[i] = new Sum(new Trans[]{at, bt, vars[2]});
+  }
   Trans[] residual = new Trans[x.length];
-  for(int i = 0; i < ax.length; i++) residual[i] = new Sum(new Trans[]{plusB[i], new Product(y[i], negativeOne)});
+  for(int i = 0; i < x.length; i++) residual[i] = new Sum(new Trans[]{preds[i], new Product(y[i], negativeOne)});
   Trans[] squaredResidual = new Trans[x.length];
-  for(int i = 0; i < ax.length; i++) squaredResidual[i] = new Exponent(residual[i], 2);
+  for(int i = 0; i < x.length; i++) squaredResidual[i] = new Exponent(residual[i], 2);
   Trans totResidual = new Sum(squaredResidual);
   Loss loss = new Loss(new Product(totResidual, div));
   
@@ -35,7 +37,7 @@ void setModel(){
   allInputs.add(negativeOne);
   allInputs.add(div);
   for(Variable i : vars) allInputs.add(i);
-  model = new Model(allInputs, Arrays.asList(plusB), loss); 
+  model = new Model(allInputs, Arrays.asList(preds), loss); 
 }
 
 void draw(){
@@ -49,16 +51,22 @@ void draw(){
   line(0, -400, 0, 400);
   line(0, 0, 400, 0);
   
-  scale(20, 20);
-  strokeWeight(0.4);
+  scale(200, 200);
+  strokeWeight(0.04);
   stroke(0, 0, 255);
   for(int i = 0; i < xCoord.size(); i++){
      point(xCoord.get(i), yCoord.get(i)); 
   }
   
-  strokeWeight(0.1);
+  strokeWeight(0.01);
   stroke(255, 0, 0);
-  line(0, vars[1].getVal(), 20, vars[0].getVal() * 20 + vars[1].getVal());
+  
+  PVector las = null;
+  for(float i = 0; i < 2; i += 0.05){
+      PVector cur = new PVector(i, (float) Math.pow(i, 2) * vars[0].getVal() + vars[1].getVal() * i + vars[2].getVal());
+      if(las != null) line(las.x, las.y, cur.x, cur.y);
+      las = cur;
+  }
   popMatrix();
   
   updateVars();
@@ -77,17 +85,21 @@ void updateVars(){
   avg = avg * rho + mag * (1 - rho);
   for(int i = 0; i < vars.length; i++) divs[i] = divs[i] / avg;
   
+  for(float i : divs) System.out.print(i + " ");
+  System.out.println();
+  
   // TODO use either avg or mag, it's fine
   for(int i = 0; i < vars.length; i++) {
-     vars[i].setVal(vars[i].getVal() - divs[i] * (float) (Math.pow(mag, 1) * 0.005)); 
+     vars[i].setVal(vars[i].getVal() - divs[i] * (float) (Math.pow(avg, 1) * 0.1)); 
   }
 }
 
 void mousePressed(){
-  float x = (float) (mouseX-50) / 20;
-  float y = (float) (350-mouseY) / 20;
+  float x = (float) (mouseX-50) / 200;
+  float y = (float) (350-mouseY) / 200;
   xCoord.add(x);
   yCoord.add(y);
-  vars = new Variable[]{new Variable(vars[0].getVal(), false, "slope"), new Variable(vars[1].getVal(), false, "bias")};
+  avg = 1;
+  for(int i = 0; i < vars.length; i++) vars[i] = new Variable(vars[i].getVal(), false, vars[i].getName());
   setModel();
 }

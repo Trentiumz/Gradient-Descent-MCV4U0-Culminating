@@ -62,6 +62,9 @@ abstract class Trans {
     public float getDerivative(){
        return this.derivative; 
     }
+    public String getName(){
+      return this.name;
+    }
     
     // set methods
     public void reset(){
