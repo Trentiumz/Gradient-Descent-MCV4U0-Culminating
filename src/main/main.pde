@@ -100,6 +100,6 @@ void mousePressed(){
   xCoord.add(x);
   yCoord.add(y);
   avg = 1;
-  for(int i = 0; i < vars.length; i++) vars[i] = new Variable(vars[i].getVal(), false, vars[i].getName());
+  for(int i = 0; i < vars.length; i++) vars[i] = new Variable(0, false, vars[i].getName());
   setModel();
 }
