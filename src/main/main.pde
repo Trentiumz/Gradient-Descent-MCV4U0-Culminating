@@ -72,7 +72,7 @@ void draw(){
   updateVars();
 }
 
-float rho = 0.6;
+float rho = 0.9;
 float avg = 1;
 void updateVars(){
   float[] divs = new float[vars.length];
@@ -83,11 +83,14 @@ void updateVars(){
   for(int i = 0; i < vars.length; i++) mag += (float) Math.pow(divs[i], 2);
   mag = (float) Math.sqrt(mag);
   avg = avg * rho + mag * (1 - rho);
-  for(int i = 0; i < vars.length; i++) divs[i] = divs[i] / avg;
   
   for(float i : divs) System.out.print(i + " ");
   System.out.println();
+  for(Variable i : vars) System.out.print(i.getVal() + " ");
+  System.out.println();
+  System.out.println(avg);
   
+  for(int i = 0; i < vars.length; i++) divs[i] = divs[i] / avg;
   // TODO use either avg or mag, it's fine
   for(int i = 0; i < vars.length; i++) {
      vars[i].setVal(vars[i].getVal() - divs[i] * (float) (Math.pow(avg, 1) * 0.1)); 
