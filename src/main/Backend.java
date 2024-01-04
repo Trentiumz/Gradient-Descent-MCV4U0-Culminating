@@ -98,6 +98,9 @@ class Variable extends Trans {
    public float getVal(){
       return val;
    }
+   public void setVal(float val){
+      this.val = val; 
+   }
    public void addVars(Set<Variable> vars){
       if(!this.constant) vars.add(this);
    }
@@ -175,6 +178,13 @@ class Loss extends Trans {
    }
 }
 
+/**
+* HOW TO USE THIS MODEL:
+* Perform operations using Trans classes, let the roots be all variables & constants to run the model with -- this is required so that the model has all required information
+* The Loss function is what everything is to the "derivative" of
+* The outputs is just for safekeeping
+* call runModel and everything will populate; update Variables using its derivative!
+*/
 class Model {
     Set<Variable> vars; // the parameters to optimize... 
     List<Variable> inputs;
@@ -207,5 +217,5 @@ class Model {
       for(Trans i : topoSort) i.reset();
       for(Trans i : topoSort) i.forward();
       for(int i = topoSort.size() - 1; i >= 0; --i) topoSort.get(i).backward();
-    }
+    } 
 }
