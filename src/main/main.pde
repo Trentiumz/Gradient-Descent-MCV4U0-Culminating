@@ -77,7 +77,7 @@ public class ChooseState extends State{
 
 void setup(){
   size(1200, 800);
-  curState = new SineFitState();
+  curState = new ChooseState();
   curState.setup();
 }
 
