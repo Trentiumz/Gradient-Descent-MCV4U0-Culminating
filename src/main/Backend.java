@@ -251,10 +251,14 @@ abstract class Optimizer{
 class Momentum extends Optimizer{
     float[] sqAvg;
     float rho;
+    float lr;
+    float buff;
     
-    public Momentum(Variable[] vars, float rho){
+    public Momentum(Variable[] vars, float rho, float learnRate, float buffer){
        super(vars);
        this.rho = rho;
+       this.lr = learnRate;
+       this.buff = buffer;
        this.sqAvg = new float[vars.length];
        for(int i = 0; i < vars.length; i++) sqAvg[i] = (float) 1;
     }
@@ -271,10 +275,8 @@ class Momentum extends Optimizer{
         sqAvg[i] = rho * sqAvg[i] + (1-rho) * (float) Math.pow(Math.abs(divs[i]), 1);
       }
       
-      System.out.println(divs[0]);
-      
       for(int i = 0; i < vars.length; i++) {
-         vars[i].setVal(vars[i].getVal() - divs[i] * (float) 0.01 / (sqAvg[i] + (float) 1));
+         vars[i].setVal(vars[i].getVal() - divs[i] * (float) lr / (sqAvg[i] + (float) buff));
       }
     }
 }

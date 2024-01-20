@@ -4,6 +4,7 @@ import java.util.stream.*;
 abstract class CurveFitState extends State{
   ArrayList<Float> x, y;
   float ox, oy, sx, sy;
+  Button back;
 
   public CurveFitState() {
     x = new ArrayList<Float>();
@@ -15,6 +16,8 @@ abstract class CurveFitState extends State{
     this.oy = height / 2;
     sx = width / 2;
     sy = height / 4;
+    
+    back = new Button(width - 100, 10, 90, 40, "Back");
   }
 
   public void setup(){
@@ -25,7 +28,7 @@ abstract class CurveFitState extends State{
   public abstract void updatePoints(ArrayList<Float> x, ArrayList<Float> y);
 
   public void draw() {
-    background(255);
+    background(220, 255, 183);
     this.tick();
     
     pushMatrix();
@@ -44,16 +47,20 @@ abstract class CurveFitState extends State{
     }
     
     strokeWeight(3);
-    stroke(255, 0, 0);
+    stroke(255, 104, 104);
     PVector[] pts = getCurve();
     for(int i = 0; i < pts.length - 1; i++){
        line(pts[i].x * sx, pts[i].y * sy, pts[i+1].x * sx, pts[i+1].y * sy); 
     }
     
     popMatrix();
+    back.render();
   }
 
   public void mousePressed(float x, float y) {
+    if(back.clicked(x, y)){
+       changeState(new ChooseState());
+    }
     this.x.add((x-ox) / sx);
     this.y.add((oy-y) / sy);
     
@@ -120,7 +127,7 @@ class QuadraticFitState extends CurveFitState {
     for (Variable i : vars) allInputs.add(i);
 
     this.model = new Model(allInputs, Arrays.asList(preds), loss);
-    this.optimizer = new Momentum(vars, (float) 0.9); 
+    this.optimizer = new Momentum(vars, (float) 0.9, 0.1f, 0.5f); 
   }
 }
 
@@ -180,6 +187,6 @@ class SineFitState extends CurveFitState{
       for (Variable i : vars) allInputs.add(i);
   
       this.model = new Model(allInputs, Arrays.asList(preds), loss);
-      this.optimizer = new Momentum(vars, (float) 0.9); 
+      this.optimizer = new Momentum(vars, (float) 0.9, 0.01f, 1f); 
     }
 }
