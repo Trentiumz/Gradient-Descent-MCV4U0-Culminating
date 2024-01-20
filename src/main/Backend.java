@@ -164,6 +164,21 @@ class Exponent extends Trans {
     }
 }
 
+class Sine extends Trans{
+   Trans last;
+  
+   public Sine(Trans last){
+      super(new Trans[]{last});
+      this.last = last;
+   }
+   protected float runCalcs(){
+     return (float) Math.sin(last.getResult());
+   }
+   protected void updateDerivatives(){
+      last.incDerivative(this.getDerivative() * (float) Math.cos(last.getResult()));
+   }
+}
+
 class Loss extends Trans {
    Trans last;
   
@@ -221,4 +236,45 @@ class Model {
       for(Trans i : topoSort) i.forward();
       for(int i = topoSort.size() - 1; i >= 0; --i) topoSort.get(i).backward();
     } 
+}
+
+abstract class Optimizer{
+   Variable[] vars;
+   
+   public Optimizer(Variable[] vars){
+      this.vars = vars;
+   }
+   
+   public abstract void optimize(); 
+}
+
+class Momentum extends Optimizer{
+    float[] sqAvg;
+    float rho;
+    
+    public Momentum(Variable[] vars, float rho){
+       super(vars);
+       this.rho = rho;
+       this.sqAvg = new float[vars.length];
+       for(int i = 0; i < vars.length; i++) sqAvg[i] = (float) 1;
+    }
+    
+    /**
+    * Optimize the variables based on their derivatives
+    * impl note: make sure to call the model beforehand
+    */
+    public void optimize(){
+      float[] divs = new float[vars.length];
+      
+      for(int i = 0; i < vars.length; i++) {
+        divs[i] = vars[i].getDerivative();
+        sqAvg[i] = rho * sqAvg[i] + (1-rho) * (float) Math.pow(Math.abs(divs[i]), 1);
+      }
+      
+      System.out.println(divs[0]);
+      
+      for(int i = 0; i < vars.length; i++) {
+         vars[i].setVal(vars[i].getVal() - divs[i] * (float) 0.01 / (sqAvg[i] + (float) 1));
+      }
+    }
 }
